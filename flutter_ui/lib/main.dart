@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'services/auth_service.dart';
+import 'home_screen.dart';
+import 'login_screen.dart';
 
 void main() {
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -16,78 +17,62 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(title: 'QA Test Manager'),
+      home: const AuthenticationCheck(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({Key? key, required this.title}) : super(key: key);
-
-  final String title;
+class AuthenticationCheck extends StatefulWidget {
+  const AuthenticationCheck({super.key});
 
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  State<AuthenticationCheck> createState() => _AuthenticationCheckState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  String _apiResponse = 'Press the button to ping the API';
+class _AuthenticationCheckState extends State<AuthenticationCheck> {
+  bool _isAuthenticated = false;
+  bool _isCheckingAuth = true;
 
-  Future<void> _pingApi() async {
-    // make API call
-    // log function call
-    print('Pinging API');
-    // add try catch block
-    http.Response response;
-    try {
-      response = await http.get(Uri.parse('http://localhost:3000/ping'));
-    } on Exception catch (e) {
-      print('Error: ${e.toString()}');
-      // TODO
-      return;
-    }
-    // check response status code
-    // log response status code
-    // print('Response status code: ${}');
-    if (response.statusCode == 200) {
-      // log success
-      print('API call successful');
-      final decodedResponse = jsonDecode(response.body);
-      setState(() {
-        _apiResponse = 'API Response: ${decodedResponse['message']}';
-      });
-    } else {
-      // log error
-      print('API call failed with status code ${response.statusCode}');
-      setState(() {
-        _apiResponse =
-            'Error: API call failed with status code ${response.statusCode}';
-      });
-    }
+  @override
+  void initState() {
+    super.initState();
+    _checkAuthentication();
+  }
+
+  Future<void> _checkAuthentication() async {
+    final isValidToken = await AuthService.validateToken();
+    setState(() {
+      _isAuthenticated = isValidToken;
+      _isCheckingAuth = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              _apiResponse,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _pingApi,
-              child: const Text('Ping API'),
-            ),
-          ],
-        ),
-      ),
-    );
+    if (_isCheckingAuth) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    } else {
+      return _isAuthenticated ? const HomeScreen() : const LoginScreen();
+    }
   }
 }
+
+// Placeholder for your HomeScreen (create lib/home_screen.dart)
+// class HomeScreen extends StatelessWidget {
+//   const HomeScreen({super.key});
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(appBar: AppBar(title: const Text('Home Screen')), body: const Center(child: Text('Logged In!')));
+//   }
+// }
+
+// // Placeholder for your LoginScreen (create lib/login_screen.dart) - we'll implement this next
+// class LoginScreen extends StatelessWidget {
+//   const LoginScreen({super.key});
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(appBar: AppBar(title: const Text('Login')), body: const Center(child: Text('Login Screen')));
+//   }
+// }
