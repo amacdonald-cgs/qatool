@@ -2,20 +2,20 @@
 services:
   # Flutter UI
   flutter_ui:
-        build:
-          context: ./flutter_ui
-          dockerfile: Dockerfile.dev
-        dns:
-          - 8.8.8.8
-        ports:
-          - "8090:8080"  # Or whatever port Flutter is using
-        volumes:
-          - ./flutter_ui:/app
-          - flutter_modules:/app/node_modules # Persist node_modules
-        depends_on:
-          - backend_api
-        environment:
-          - BACKEND_API_URL=http://backend_api:3000  # Points to Go backend
+    build:
+      context: ./flutter_ui
+      dockerfile: Dockerfile.dev
+    dns:
+      - 8.8.8.8
+    ports:
+      - "8090:8080"  # Or whatever port Flutter is using
+    volumes:
+      - ./flutter_ui:/app
+      - flutter_modules:/app/node_modules # Persist node_modules
+    depends_on:
+      - backend_api
+    environment:
+      - BACKEND_API_URL=http://backend_api:3000  # Points to Go backend
 
   # Go Backend API
   backend_api:
@@ -25,7 +25,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      #- ./backend_api:/app
+      - ./backend_api:/app
     environment:
       - DATABASE_URL=postgresql://user:password@db:5432/database  # Replace
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/

@@ -24,7 +24,11 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Copy the pre-built binary from the builder stage
-COPY --from=builder /app/main /app/main
+    # Create a non-root user
+    RUN addgroup -g 1000 appuser && adduser -u 1000 -G appuser -s /bin/sh -D appuser
+    RUN chown -R appuser:appuser /app
+
+COPY --from=builder --chown=appuser:appuser /app/main /app/main
 RUN chmod +x /app/main
 
 RUN chown root:root /app/main
@@ -33,4 +37,6 @@ RUN chown root:root /app/main
 EXPOSE 3000
 
 # Command to run the executable
+USER appuser
+
 CMD ["/app/main"]

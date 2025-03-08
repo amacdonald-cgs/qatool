@@ -1,26 +1,22 @@
-FROM golang:1.23-alpine
+FROM golang:1.23-alpine AS builder
 
 WORKDIR /app
 
-# Copy go mod and sum files
 COPY go.mod go.sum ./
-
-# Download all dependencies. Dependencies will be cached if the go.mod and go.sum files are not changed
 RUN go mod download
-
-# Copy the source code
 COPY . .
+RUN go build -o qa-cli .
 
-# Build the application
-RUN go build -o /tmp/qa-cli .
+FROM alpine:latest
 
-# Copy the binary to the /app directory
-RUN cp /tmp/qa-cli /app/qa-cli
+WORKDIR /app
 
-# Add debugging commands
-RUN apk add --no-cache libc6-compat
-RUN chmod +x /app/qa-cli
-RUN ls -l /app
+# Create a non-root user
+RUN addgroup -g 1000 appuser && adduser -u 1000 -G appuser -s /bin/sh -D appuser
+RUN chown -R appuser:appuser /app
 
-# Command to run the executable
+COPY --from=builder --chown=appuser:appuser /app/qa-cli /app/qa-cli
+
+USER appuser
+
 CMD ["/app/qa-cli"]
