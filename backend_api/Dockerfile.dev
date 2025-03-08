@@ -37,6 +37,5 @@ RUN chown root:root /app/main
 EXPOSE 3000
 
 # Command to run the executable
-USER appuser
-
 CMD ["/app/main"]
+

@@ -16,6 +16,7 @@ RUN addgroup -g 1000 appuser && adduser -u 1000 -G appuser -s /bin/sh -D appuser
 RUN chown -R appuser:appuser /app
 
 COPY --from=builder --chown=appuser:appuser /app/qa-cli /app/qa-cli
+RUN chmod +x /app/qa-cli
 
 USER appuser
 

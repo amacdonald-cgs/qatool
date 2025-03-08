@@ -49,16 +49,16 @@ services:
       - db
 
   # Go CLI
-  go_cli:
-    build:
-      context: ./go_cli
-      dockerfile: Dockerfile.dev
-    volumes:
-      - ./go_cli:/app
-    environment:
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/ # Needed if CLI uses RabbitMQ directly.
-    depends_on:
-      - rabbitmq # Only needed if CLI interacts with RabbitMQ directly.
+  # go_cli:
+  #   build:
+  #     context: ./go_cli
+  #     dockerfile: Dockerfile.dev
+  #   volumes:
+  #     - ./go_cli:/app
+  #   environment:
+  #     - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/ # Needed if CLI uses RabbitMQ directly.
+  #   depends_on:
+  #     - rabbitmq # Only needed if CLI interacts with RabbitMQ directly.
 
   # PostgreSQL Database
   db:
