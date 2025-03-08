@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
-import 'home_screen.dart'; // Import AuthService
+import 'services/auth_service.dart';
+import 'home_screen.dart'; // Import HomeScreen
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -27,14 +27,13 @@ class _LoginScreenState extends State<LoginScreen> {
       final success = await AuthService.login(email, password);
 
       if (success) {
-        // Navigate to HomeScreen on successful login
         if (!mounted) return;
-        Navigator.pushReplacement(context,
-            MaterialPageRoute(builder: (context) => const HomeScreen()));
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
       } else {
         setState(() {
-          _errorMessage =
-              'Login failed. Please check your credentials.'; // Set error message
+          _errorMessage = 'Login failed. Please check your credentials.';
         });
       }
     }

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'services/auth_service.dart';
+import 'services/auth_service.dart'; // Import AuthService
 import 'home_screen.dart';
 import 'login_screen.dart';
 
@@ -40,9 +40,9 @@ class _AuthenticationCheckState extends State<AuthenticationCheck> {
   }
 
   Future<void> _checkAuthentication() async {
-    final isValidToken = await AuthService.validateToken();
+    final isLoggedIn = await AuthService.isLoggedIn(); // Use isLoggedIn()
     setState(() {
-      _isAuthenticated = isValidToken;
+      _isAuthenticated = isLoggedIn;
       _isCheckingAuth = false;
     });
   }
@@ -58,21 +58,3 @@ class _AuthenticationCheckState extends State<AuthenticationCheck> {
     }
   }
 }
-
-// Placeholder for your HomeScreen (create lib/home_screen.dart)
-// class HomeScreen extends StatelessWidget {
-//   const HomeScreen({super.key});
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(appBar: AppBar(title: const Text('Home Screen')), body: const Center(child: Text('Logged In!')));
-//   }
-// }
-
-// // Placeholder for your LoginScreen (create lib/login_screen.dart) - we'll implement this next
-// class LoginScreen extends StatelessWidget {
-//   const LoginScreen({super.key});
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(appBar: AppBar(title: const Text('Login')), body: const Center(child: Text('Login Screen')));
-//   }
-// }

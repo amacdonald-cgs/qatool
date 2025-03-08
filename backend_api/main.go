@@ -11,9 +11,23 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 )
 
-const authServiceURL = "https://rehearsed-dev.teamworkar.com/api/v1/auth" // External auth service URL
+const authServiceURL = "https://rehearsed-dev.teamworkar.com/api/v1/auth"
+
+// Secret key for JWT signing (store securely, e.g., in environment variables)
+var jwtSecret = []byte(getJWTSecret())
+
+func getJWTSecret() string {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		// In production, this should *never* be empty.  For dev, use a default.
+		log.Println("WARNING: JWT_SECRET environment variable not set. Using a default (insecure) secret.")
+		return "your-default-secret-key" // CHANGE THIS!
+	}
+	return secret
+}
 
 func main() {
 	r := gin.Default()
@@ -34,7 +48,10 @@ func main() {
 
 	r.GET("/ping", pingHandler)
 	r.POST("/api/login", loginHandler)
-	r.GET("/api/token", tokenHandler)
+
+	// Protected routes (require authentication)
+	authorized := r.Group("/api", authMiddleware())
+	authorized.GET("/protected", protectedHandler) // Example protected route
 
 	r.Run(":8000") // Listen and serve on 0.0.0.0:8000
 }
@@ -43,6 +60,14 @@ func pingHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "pong",
 	})
+}
+
+// Custom Claims struct for JWT
+type Claims struct {
+	UserID string   `json:"user_id"`
+	Email  string   `json:"email"`
+	Roles  []string `json:"roles"`
+	jwt.RegisteredClaims
 }
 
 func loginHandler(c *gin.Context) {
@@ -61,7 +86,7 @@ func loginHandler(c *gin.Context) {
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json, text/plain, */*") // Mimic browser headers
+	req.Header.Set("Accept", "application/json, text/plain, */*")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -72,55 +97,114 @@ func loginHandler(c *gin.Context) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
-		// Forward cookies from external auth service to frontend
-		for _, cookie := range resp.Cookies() {
-			c.SetCookie(cookie.Name, cookie.Value, cookie.MaxAge, cookie.Path, cookie.Domain, cookie.Secure, cookie.HttpOnly)
+		// Decode the response from the external auth service
+		var externalAuthResponse struct {
+			Status  bool                   `json:"status"`
+			Message string                 `json:"message"`
+			Errors  interface{}            `json:"errors"`
+			Data    map[string]interface{} `json:"data"`
 		}
 
-		// You might want to parse the body and forward relevant parts, or just a success status
-		var externalAuthResponse map[string]interface{}
 		if err := json.NewDecoder(resp.Body).Decode(&externalAuthResponse); err != nil {
-			log.Println("Error decoding external auth response:", err) // Log error, but still consider login success from status code
+			c.JSON(http.StatusInternalServerError, gin.H{"status": false, "message": "Failed to decode external auth response", "errors": err.Error()})
+			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"status": true, "message": "Login successful", "external_response": externalAuthResponse})
+		if externalAuthResponse.Status {
+			// Extract user data from the external auth response (adjust these keys based on the actual response)
+			userData, ok := externalAuthResponse.Data["user"].(map[string]interface{}) // You may need to adjust based on the actual external API response
+			if !ok {
+				userData = map[string]interface{}{} // Use empty map if "user" data is not present as expected.
+			}
+			userID, _ := userData["id"].(string)                        // Extract user ID.  The , _ handles the case where "id" is missing.
+			email, _ := userData["email"].(string)                      // Extract email
+			roles := []string{}                                         // Initialize empty roles
+			if rolesData, ok := userData["roles"].([]interface{}); ok { // Check for roles and iterate
+				for _, role := range rolesData {
+					if roleStr, ok := role.(string); ok {
+						roles = append(roles, roleStr)
+					}
+				}
+			}
+			// Create JWT claims
+			claims := Claims{
+				UserID: userID,
+				Email:  email,
+				Roles:  roles,
+				RegisteredClaims: jwt.RegisteredClaims{
+					Issuer:    "qa-test-manager",                                  // Set the issuer
+					ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)), // Set expiration (e.g., 24 hours)
+					IssuedAt:  jwt.NewNumericDate(time.Now()),
+				},
+			}
+
+			// Create JWT token
+			token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+			signedToken, err := token.SignedString(jwtSecret)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"status": false, "message": "Failed to generate token", "errors": err.Error()})
+				return
+			}
+
+			// Return the token in the response
+			c.JSON(http.StatusOK, gin.H{"status": true, "message": "Login successful", "token": signedToken})
+		} else {
+			// Forward error response from external auth service
+			c.JSON(resp.StatusCode, gin.H{"status": false, "message": "Login failed", "external_status_code": resp.StatusCode, "external_response": externalAuthResponse})
+		}
 	} else {
 		var externalAuthErrorResponse map[string]interface{}
-		json.NewDecoder(resp.Body).Decode(&externalAuthErrorResponse) // Try to decode error body
+		json.NewDecoder(resp.Body).Decode(&externalAuthErrorResponse)
 		c.JSON(resp.StatusCode, gin.H{"status": false, "message": "Login failed", "external_status_code": resp.StatusCode, "external_response": externalAuthErrorResponse})
 	}
 }
 
-func tokenHandler(c *gin.Context) {
-	// Proxy token validation request to external auth service
-	externalAuthURL := fmt.Sprintf("%s/token", authServiceURL)
-	req, err := http.NewRequest("GET", externalAuthURL, nil)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"status": false, "message": "Failed to create token request", "errors": err.Error()})
-		return
-	}
-	req.Header.Set("Accept", "application/json, text/plain, */*") // Mimic browser headers
-
-	// Forward cookies from the incoming request to the external auth service
-	for _, cookie := range c.Request.Cookies() {
-		req.AddCookie(cookie)
-	}
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"status": false, "message": "External token service error", "errors": err.Error()})
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusOK {
-		var externalAuthResponse map[string]interface{}
-		if err := json.NewDecoder(resp.Body).Decode(&externalAuthResponse); err != nil {
-			log.Println("Error decoding external token response:", err) // Log error, but still consider token valid from status code
+// Auth Middleware
+func authMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"status": false, "message": "Authorization header required"})
+			return
 		}
-		c.JSON(http.StatusOK, gin.H{"status": true, "message": "Token valid", "external_response": externalAuthResponse})
-	} else {
-		c.JSON(resp.StatusCode, gin.H{"status": false, "message": "Token invalid", "external_status_code": resp.StatusCode})
+
+		// Extract token from "Bearer <token>" format
+		tokenString := ""
+		fmt.Sscanf(authHeader, "Bearer %s", &tokenString)
+		if tokenString == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"status": false, "message": "Invalid authorization format"})
+			return
+		}
+
+		// Parse and validate the token
+		token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+			// Validate signing method
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return jwtSecret, nil
+		})
+
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"status": false, "message": "Invalid token", "errors": err.Error()})
+			return
+		}
+
+		if claims, ok := token.Claims.(*Claims); ok && token.Valid {
+			// Token is valid, set claims in context for later use
+			c.Set("user_id", claims.UserID)
+			c.Set("email", claims.Email)
+			c.Set("roles", claims.Roles)
+			c.Next() // Proceed to the next handler
+		} else {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"status": false, "message": "Invalid token claims"})
+		}
 	}
+}
+
+// Example protected handler (requires authentication)
+func protectedHandler(c *gin.Context) {
+	userID, _ := c.Get("user_id") // Retrieve user ID from context (set by middleware)
+	email, _ := c.Get("email")    // Retrieve email from context
+	c.JSON(http.StatusOK, gin.H{"message": "Protected resource accessed", "user_id": userID, "email": email})
 }
