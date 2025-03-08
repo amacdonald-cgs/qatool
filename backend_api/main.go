@@ -85,8 +85,17 @@ func loginHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"status": false, "message": "Failed to create auth request", "errors": err.Error()})
 		return
 	}
-	req.Header.Set("Content-Type", "application/json")
+
+	// *** IMPORTANT: Forward relevant headers from the incoming request ***
+	req.Header.Set("Content-Type", "application/json") // Always set Content-Type
 	req.Header.Set("Accept", "application/json, text/plain, */*")
+	// Forward other important headers.  Crucially, forward cookies.
+	forwardHeaders := []string{"User-Agent", "Cookie", "Referer", "Origin"}
+	for _, header := range forwardHeaders {
+		if value := c.GetHeader(header); value != "" {
+			req.Header.Set(header, value)
+		}
+	}
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -111,34 +120,34 @@ func loginHandler(c *gin.Context) {
 		}
 
 		if externalAuthResponse.Status {
-			// Extract user data from the external auth response (adjust these keys based on the actual response)
-			userData, ok := externalAuthResponse.Data["user"].(map[string]interface{}) // You may need to adjust based on the actual external API response
+
+			// Extract user data and create JWT (as before)
+			userData, ok := externalAuthResponse.Data["user"].(map[string]interface{})
 			if !ok {
-				userData = map[string]interface{}{} // Use empty map if "user" data is not present as expected.
+				userData = map[string]interface{}{}
 			}
-			userID, _ := userData["id"].(string)                        // Extract user ID.  The , _ handles the case where "id" is missing.
-			email, _ := userData["email"].(string)                      // Extract email
-			roles := []string{}                                         // Initialize empty roles
-			if rolesData, ok := userData["roles"].([]interface{}); ok { // Check for roles and iterate
+			userID, _ := userData["id"].(string)
+			email, _ := userData["email"].(string)
+			roles := []string{}
+			if rolesData, ok := userData["roles"].([]interface{}); ok {
 				for _, role := range rolesData {
 					if roleStr, ok := role.(string); ok {
 						roles = append(roles, roleStr)
 					}
 				}
 			}
-			// Create JWT claims
+
 			claims := Claims{
 				UserID: userID,
 				Email:  email,
 				Roles:  roles,
 				RegisteredClaims: jwt.RegisteredClaims{
-					Issuer:    "qa-test-manager",                                  // Set the issuer
-					ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)), // Set expiration (e.g., 24 hours)
+					Issuer:    "qa-test-manager",
+					ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 					IssuedAt:  jwt.NewNumericDate(time.Now()),
 				},
 			}
 
-			// Create JWT token
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 			signedToken, err := token.SignedString(jwtSecret)
 			if err != nil {
@@ -146,10 +155,9 @@ func loginHandler(c *gin.Context) {
 				return
 			}
 
-			// Return the token in the response
 			c.JSON(http.StatusOK, gin.H{"status": true, "message": "Login successful", "token": signedToken})
+
 		} else {
-			// Forward error response from external auth service
 			c.JSON(resp.StatusCode, gin.H{"status": false, "message": "Login failed", "external_status_code": resp.StatusCode, "external_response": externalAuthResponse})
 		}
 	} else {

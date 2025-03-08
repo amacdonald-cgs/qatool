@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'services/auth_service.dart'; // Import AuthService
 import 'home_screen.dart';
 import 'login_screen.dart';
+import 'dart:async'; // Add this line
 
 void main() {
   runApp(const MyApp());

@@ -53,7 +53,7 @@ class AuthService {
   }
 
   // Helper function for making authenticated requests
-  static Future<http.Response> _authenticatedGet(String path) async {
+  static Future<http.Response> authenticatedGet(String path) async {
     final url = Uri.parse('$_baseUrl$path');
     final headers = await getAuthHeaders(); // Get headers with token
     return await http.get(url, headers: headers);

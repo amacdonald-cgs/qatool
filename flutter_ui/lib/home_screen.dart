@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'login_screen.dart';
 import 'services/auth_service.dart'; // Import AuthService
+import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,7 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _fetchProtectedData() async {
-    final response = await AuthService._authenticatedGet(
+    final response = await AuthService.authenticatedGet(
         '/protected'); // Use _authenticatedGet
 
     if (response.statusCode == 200) {
