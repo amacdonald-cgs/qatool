@@ -6,37 +6,6 @@ class AuthService {
   static const String _baseUrl = 'http://localhost:8000/api';
   static const _storage = FlutterSecureStorage();
 
-  // ... (login, getToken, isLoggedIn, logout functions remain the same) ...
-
-  // Helper function for making authenticated requests
-  static Future<http.Response> _authenticatedGet(String path) async {
-    final url = Uri.parse('$_baseUrl$path');
-    final headers = await getAuthHeaders(); // Get headers with token
-    return await http.get(url, headers: headers);
-  }
-
-  static Future<http.Response> _authenticatedPost(
-      String path, Map<String, dynamic> body) async {
-    final url = Uri.parse('$_baseUrl$path');
-    final headers = await getAuthHeaders();
-    headers['Content-Type'] = 'application/json'; // Add content type for POST
-    return await http.post(url, headers: headers, body: jsonEncode(body));
-  }
-
-  static Future<http.Response> _authenticatedPut(
-      String path, Map<String, dynamic> body) async {
-    final url = Uri.parse('$_baseUrl$path');
-    final headers = await getAuthHeaders();
-    headers['Content-Type'] = 'application/json'; // Add content type for PUT
-    return await http.put(url, headers: headers, body: jsonEncode(body));
-  }
-
-  static Future<http.Response> _authenticatedDelete(String path) async {
-    final url = Uri.parse('$_baseUrl$path');
-    final headers = await getAuthHeaders(); // Get headers with token
-    return await http.delete(url, headers: headers);
-  }
-
   // Function to add the Authorization header to API requests
   static Future<Map<String, String>> getAuthHeaders() async {
     final token = await getToken();
@@ -81,5 +50,34 @@ class AuthService {
   // Function to clear the JWT (logout)
   static Future<void> logout() async {
     await _storage.delete(key: 'jwt_token');
+  }
+
+  // Helper function for making authenticated requests
+  static Future<http.Response> _authenticatedGet(String path) async {
+    final url = Uri.parse('$_baseUrl$path');
+    final headers = await getAuthHeaders(); // Get headers with token
+    return await http.get(url, headers: headers);
+  }
+
+  static Future<http.Response> _authenticatedPost(
+      String path, Map<String, dynamic> body) async {
+    final url = Uri.parse('$_baseUrl$path');
+    final headers = await getAuthHeaders();
+    headers['Content-Type'] = 'application/json'; // Add content type for POST
+    return await http.post(url, headers: headers, body: jsonEncode(body));
+  }
+
+  static Future<http.Response> _authenticatedPut(
+      String path, Map<String, dynamic> body) async {
+    final url = Uri.parse('$_baseUrl$path');
+    final headers = await getAuthHeaders();
+    headers['Content-Type'] = 'application/json'; // Add content type for PUT
+    return await http.put(url, headers: headers, body: jsonEncode(body));
+  }
+
+  static Future<http.Response> _authenticatedDelete(String path) async {
+    final url = Uri.parse('$_baseUrl$path');
+    final headers = await getAuthHeaders(); // Get headers with token
+    return await http.delete(url, headers: headers);
   }
 }
