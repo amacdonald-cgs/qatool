@@ -14,16 +14,26 @@ import (
 	"golang.org/x/crypto/bcrypt" // Import the bcrypt library
 )
 
+const (
+	apiKeysTable              = "api_keys"
+	orgIDColumn               = "project_id"
+	hashedSecretKeyColumn     = "hashed_secret_key"
+	fastHashedSecretKeyColumn = "fast_hashed_secret_key"
+	displaySecretKeyColumn    = "display_secret_key"
+	idColumn                  = "id"
+	publicKeyColumn           = "public_key"
+)
+
 // Function to connect to a database (replace with your connection details)
 func connectToDB(dbHost, dbName, dbUser, dbPassword string) (*sql.DB, error) {
 	connStr := fmt.Sprintf("host=%s dbname=%s user=%s password=%s sslmode=disable", dbHost, dbName, dbUser, dbPassword)
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open database connection: %w", err)
 	}
 	err = db.Ping()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 	return db, nil
 }
@@ -53,15 +63,16 @@ func createLangfuseAPIKey(orgID, langfuseDbHost, langfuseDbName, langfuseDbUser,
 	displaySecretKey := newAPIKey[:8] + "..." // Example: show the first 8 characters, add "..."
 
 	// 4. Insert the new API key into the Langfuse database
-	query := `
-        INSERT INTO api_keys (id, created_at, note, public_key, hashed_secret_key, display_secret_key, project_id, fast_hashed_secret_key)
+	query := fmt.Sprintf(`
+        INSERT INTO %s (%s, created_at, note, %s, %s, %s, %s, %s)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    ` // Replace "api_keys" and column names with the actual names in your Langfuse DB
+    `, apiKeysTable, idColumn, publicKeyColumn, hashedSecretKeyColumn, displaySecretKeyColumn, orgIDColumn, fastHashedSecretKeyColumn)
 
 	_, err = db.Exec(query, apiKeyID, time.Now(), "Created by QA Tool", newAPIKey, hashedAPIKey, displaySecretKey, orgID, fastHashedAPIKey)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to insert API key into Langfuse database: %w", err)
 	}
+
 	log.Println("Successfully generated langfuse api key")
 	return newAPIKey, apiKeyID, nil //Returning both api and id
 }
