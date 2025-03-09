@@ -59,7 +59,7 @@ class AuthService {
     return await http.get(url, headers: headers);
   }
 
-  static Future<http.Response> _authenticatedPost(
+  static Future<http.Response> authenticatedPost(
       String path, Map<String, dynamic> body) async {
     final url = Uri.parse('$_baseUrl$path');
     final headers = await getAuthHeaders();
@@ -67,7 +67,7 @@ class AuthService {
     return await http.post(url, headers: headers, body: jsonEncode(body));
   }
 
-  static Future<http.Response> _authenticatedPut(
+  static Future<http.Response> authenticatedPut(
       String path, Map<String, dynamic> body) async {
     final url = Uri.parse('$_baseUrl$path');
     final headers = await getAuthHeaders();
@@ -75,7 +75,7 @@ class AuthService {
     return await http.put(url, headers: headers, body: jsonEncode(body));
   }
 
-  static Future<http.Response> _authenticatedDelete(String path) async {
+  static Future<http.Response> authenticatedDelete(String path) async {
     final url = Uri.parse('$_baseUrl$path');
     final headers = await getAuthHeaders(); // Get headers with token
     return await http.delete(url, headers: headers);

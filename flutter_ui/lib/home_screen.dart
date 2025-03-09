@@ -1,8 +1,7 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'services/auth_service.dart'; // Import AuthService
 import 'login_screen.dart';
+import 'dart:convert'; // Add this import
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,11 +20,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _fetchProtectedData() async {
-    final response = await AuthService.authenticatedGet(
-        '/protected'); // Use _authenticatedGet
+    final response =
+        await AuthService.authenticatedGet('/protected'); // Corrected call
 
     if (response.statusCode == 200) {
-      final decodedResponse = jsonDecode(response.body);
+      final decodedResponse = jsonDecode(response.body); // Use jsonDecode
       setState(() {
         _protectedData =
             'Data: ${decodedResponse['message']}'; // Update UI with data
